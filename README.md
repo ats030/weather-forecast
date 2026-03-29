@@ -23,7 +23,7 @@ pip install requests python-dotenv
 
 ## 設定
 
-`.env` ファイルを作成し、以下の環境変数を設定してください:
+uvを実行するディレクトリに `.env` ファイルを作成し、以下の環境変数を設定してください:
 
 ```env
 OPENWEATHER_API_KEY=your_api_key
