@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(python -c \"from weather_lib import *; import os; print\\(''OLLAMA_URL:'', os.getenv\\(''OLLAMA_URL''\\)\\); print\\(''Template exists:'', os.path.exists\\(''CONTEXT_WEEKLY.md''\\)\\)\")",
+      "Bash(python3:*)",
+      "Bash(systemctl:*)",
+      "Bash(systemctl status:*)",
+      "Bash(pgrep:*)",
+      "Bash(curl:*)",
+      "Bash(uv run python:*)",
+      "Bash(python -m py_compile:*)"
+    ]
+  }
+}
