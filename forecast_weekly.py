@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 import datetime
 import logging
-import time
-import requests
 import os
 import json
 from weather_lib import *
-
-JST = datetime.timezone(datetime.timedelta(hours=9))
 
 # =========================
 # 曜日変換
@@ -33,15 +29,20 @@ def group_week_by_day(week_data):
     return [(k, days[k]) for k in sorted(days.keys())]
 
 # =========================
-# 圧縮（曜日追加）
+# 圧縮（曜日・UV追加）
 # =========================
-def compress_day_data(day_date, day_list, profile):
+def compress_day_data(day_date, day_list, profile, uv_today=None):
 
     morning, day, night = split_by_time(day_list)
 
     m_block = evaluate_block(morning)
     d_block = evaluate_block(day)
     n_block = evaluate_block(night)
+
+    # UV注入（朝・昼のみ有効、夜はNone）
+    m_block["uv_index"] = uv_today
+    d_block["uv_index"] = uv_today
+    n_block["uv_index"] = None
 
     weekday_en = day_date.strftime("%A")
     weekday = WEEKDAY_MAP.get(weekday_en, weekday_en)
@@ -62,7 +63,7 @@ def compress_day_data(day_date, day_list, profile):
 # =========================
 # LLM生成
 # =========================
-def generate_weekly_ai_output(week_data, profile):
+def generate_weekly_ai_output(week_data, profile, uv_data=None):
 
     raw_url = os.getenv("OLLAMA_URL")
     if not raw_url:
@@ -72,50 +73,19 @@ def generate_weekly_ai_output(week_data, profile):
     if not template:
         return "テンプレート読み込み失敗"
 
+    uv_data = uv_data or {}
     grouped = group_week_by_day(week_data)
 
     compressed = [
-        compress_day_data(day_date, day_list, profile)
+        compress_day_data(day_date, day_list, profile, uv_data.get(str(day_date)))
         for day_date, day_list in grouped
     ]
 
     prompt = template + "\n\nWEATHER ANALYSIS:\n" + json.dumps(compressed, ensure_ascii=False)
+    return call_ollama(raw_url, prompt, num_predict=1200)
 
-    failure_rate = get_failure_rate()
-    max_retry = min(6, max(3, int(3 + failure_rate*10)))
-
-    for attempt in range(1, max_retry+1):
-        try:
-            res = requests.post(
-                f"{normalize_ollama_url(raw_url)}/api/generate",
-                json={
-                    "model":"gemma3:4b",
-                    "prompt":prompt,
-                    "stream":False,
-                    "options":{"temperature":0.7,"num_predict":1200}
-                },
-                timeout=180
-            )
-
-            text = res.json().get("response","").strip()
-
-            if text and validate_output(text):
-                update_paragraph_stats(True)
-                return text
-            else:
-                logging.warning(f"フォーマット不正 (attempt {attempt})")
-                update_paragraph_stats(False)
-
-        except Exception as e:
-            logging.error(f"LLM生成例外: {e}")
-            update_paragraph_stats(False)
-            time.sleep(1)
-
-    logging.error("生成失敗")
-    return "生成失敗"
-
-def build_weekly_message(week_data, profile):
-    text = generate_weekly_ai_output(week_data, profile)
+def build_weekly_message(week_data, profile, uv_data=None):
+    text = generate_weekly_ai_output(week_data, profile, uv_data)
     return f"【今週の天気】\n\n{text}\n\n更新: {datetime.datetime.now(JST)}"
 
 def main():
@@ -137,7 +107,9 @@ def main():
         logging.error("週間データなし")
         return
 
-    msg = build_weekly_message(week_data, profile)
+    uv_data = fetch_uv_daily(lat, lon)
+
+    msg = build_weekly_message(week_data, profile, uv_data)
     send(msg)
 
 if __name__ == "__main__":

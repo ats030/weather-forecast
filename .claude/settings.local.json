@@ -9,7 +9,9 @@
       "Bash(pgrep:*)",
       "Bash(curl:*)",
       "Bash(uv run python:*)",
-      "Bash(python -m py_compile:*)"
+      "Bash(python -m py_compile:*)",
+      "Bash(uv run:*)",
+      "Bash(python:*)"
     ]
   }
 }
