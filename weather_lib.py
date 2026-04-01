@@ -528,7 +528,7 @@ def call_ollama(raw_url: str, prompt: str, num_predict: int = 800) -> str:
                     "options": {"temperature": 0.7, "num_predict": num_predict}
                 },
                 stream=True,
-                timeout=(10, 60)
+                timeout=(10, 180)
             )
             parts = []
             for line in res.iter_lines():
