@@ -528,7 +528,7 @@ def call_ollama(raw_url: str, prompt: str, num_predict: int = 800) -> str:
                     "options": {"temperature": 0.7, "num_predict": num_predict}
                 },
                 stream=True,
-                timeout=(10, 180)
+                timeout=(10, 300)
             )
             parts = []
             for line in res.iter_lines():
@@ -542,7 +542,9 @@ def call_ollama(raw_url: str, prompt: str, num_predict: int = 800) -> str:
                 update_paragraph_stats(True)
                 return text
             else:
-                logging.warning(f"フォーマット不正 (attempt {attempt})")
+                paragraphs = [p for p in text.strip().split("\n\n") if p.strip()]
+                logging.warning(f"フォーマット不正 (attempt {attempt}): 段落数={len(paragraphs)}, 文字数={len(text)}")
+                logging.debug(f"出力内容:\n{text}")
                 update_paragraph_stats(False)
         except Exception as e:
             logging.error(f"LLM生成例外: {e} (attempt {attempt})")
