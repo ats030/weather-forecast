@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import json
 import requests
 import datetime
 import math
@@ -523,12 +524,20 @@ def call_ollama(raw_url: str, prompt: str, num_predict: int = 800) -> str:
                 json={
                     "model": "gemma3:4b",
                     "prompt": prompt,
-                    "stream": False,
+                    "stream": True,
                     "options": {"temperature": 0.7, "num_predict": num_predict}
                 },
-                timeout=180
+                stream=True,
+                timeout=(10, 60)
             )
-            text = res.json().get("response", "").strip()
+            parts = []
+            for line in res.iter_lines():
+                if line:
+                    chunk = json.loads(line)
+                    parts.append(chunk.get("response", ""))
+                    if chunk.get("done"):
+                        break
+            text = "".join(parts).strip()
             if text and validate_output(text):
                 update_paragraph_stats(True)
                 return text
